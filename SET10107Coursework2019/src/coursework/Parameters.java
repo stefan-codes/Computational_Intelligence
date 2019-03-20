@@ -13,26 +13,36 @@ public class Parameters {
 	 * You may add other Parameters as required to this class 
 	 * 
 	 */
-	private static int numHidden = 5;	
+	private static int numHidden = 3;	
 	private static int numGenes = calculateNumGenes();
+	public static int numInputs = 5;
+	public static int numOutputs = 3;
 	public static double minGene = -3; // specifies minimum and maximum weight values 
 	public static double maxGene = +3;
 		
-	public static int popSize = 40;
-	public static int maxEvaluations = 20000;
+	public static int popSize = 1000; // Default 40
+	public static int maxEvaluations = 20000; // Must be 20000
+	
+	// Selection
+	public static int tournamentSize = 10;
+	public static int numberOfParents = 2;
+	
+	// CrossOver - Don't change for now!
+	public static int numberOfChildrenBorn = 1;
+	public static int numberOfChildrenSurvive = 1;
 	
 	// Parameters for mutation 
 	// Rate = probability of changing a gene
 	// Change = the maximum +/- adjustment to the gene value
-	public static double mutateRate = 0.01; // mutation rate for mutation operator
-	public static double mutateChange = 0.05; // delta change for mutation operator
+	public static double mutateRate = 0.9; // mutation rate for mutation operator Default 0.01
+	public static double mutateChange = 0.05; // delta change for mutation operator Default 0.05
 	
 	//Random number generator used throughout the application
 	public static long seed = System.currentTimeMillis();
 	public static Random random = new Random(seed);
 
 	//set the NeuralNetwork class here to use your code from the GUI
-	public static Class neuralNetworkClass = ExampleEvolutionaryAlgorithm.class;
+	public static Class neuralNetworkClass = MyEvolutionaryAlgorithm.class;
 	
 	/**
 	 * Do not change any methods that appear below here.
