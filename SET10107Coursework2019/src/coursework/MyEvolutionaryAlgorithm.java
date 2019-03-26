@@ -2,10 +2,10 @@ package coursework;
 
 import java.util.ArrayList;
 
-
 import model.Fitness;
 import model.Individual;
 import model.NeuralNetwork;
+
 
 /**
  * @author Stefan Hristov
@@ -38,7 +38,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 			ArrayList<Individual> children = uniformCrossOver(parents, Parameters.numberOfChildrenBorn, Parameters.numberOfChildrenSurvive);
 			
 			// Mutation
-			mutate(children);
+			constantMutate(children);
 			
 			// Evaluate the children - set their fitness
 			evaluateIndividuals(children);
@@ -77,24 +77,33 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 	 * Mutation which for each gene applies a random positive or negative mutateChange with mutateRate chance.
 	 * @param individuals the children passed to be mutated.
 	 */
-	private void mutate(ArrayList<Individual> individuals) {
+	private void constantMutate(ArrayList<Individual> individuals) {
 		// For each individual
 		for (Individual individual : individuals) {
 			// For each genome in the chromosome
 			for (int i = 0; i < individual.chromosome.length; i++) {
 				if (Parameters.random.nextDouble() < Parameters.mutateRate) {
 					if (Parameters.random.nextBoolean()) {
-						//individual.chromosome[i] += (Parameters.mutateChange);
-						individual.chromosome[i] += (best.fitness);
+						individual.chromosome[i] += (Parameters.mutateChange);
 					} else {
-						individual.chromosome[i] -= (best.fitness);
+						individual.chromosome[i] -= (Parameters.mutateChange);
 					}
 				}
 			}
 		}
 	}
 	
-	//TODO: add comments
+	private void ffdMutate() {
+		// TODO: need to implement
+	}
+	
+	/**
+	 * Crossover where each node (hidden and output) have their weights and bias together.
+	 * @param parents the individuals for the gene recombination
+	 * @param chBorn children produced
+	 * @param chSurvive children survived and replaced in population
+	 * @return a list of children to use for replacement. 
+	 */
 	private ArrayList<Individual> customCrossOver(ArrayList<Individual> parents, int chBorn, int chSurvive){
 		ArrayList<Individual> children = new ArrayList<>();
 		ArrayList<Integer> indices = new ArrayList<>();
@@ -148,42 +157,6 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 		return children;
 	}
 	
-	//TODO: add comments
-	private ArrayList<Integer> getHiddenNeuronWeightsAndBias(int neuron){
-		ArrayList<Integer> indices = new ArrayList<>();
-		int index = 0;
-		
-		// Get all input indices
-		for (int i = 0; i < Parameters.numInputs; i++) {
-			index = neuron*Parameters.getNumHidden() + i;
-			indices.add(index);
-		}
-		
-		// Get the bias
-		index = Parameters.numInputs*Parameters.getNumHidden() + neuron;
-		indices.add(index);
-		
-		return indices;
-	}
-	
-	//TODO: add comments
-	private ArrayList<Integer> getOutputWeightsAndBias(int output){
-		ArrayList<Integer> indices = new ArrayList<>();
-		int index = 0;
-		
-		// Get all input indices
-		for (int i = 0; i < Parameters.getNumHidden(); i++) {
-			index = Parameters.getNumHidden() * Parameters.numInputs + Parameters.getNumHidden() + output*Parameters.getNumHidden() + i;
-			indices.add(index);
-		}
-		
-		// Get the bias
-		index = Parameters.getNumHidden() * Parameters.numInputs + Parameters.getNumHidden() + Parameters.getNumHidden()*Parameters.numOutputs + output;
-		indices.add(index);
-		
-		return indices;
-	}
-	
 	/**
 	 * Perform a uniform cross over on the the parents. It is random for each genome. 
 	 * @param parents the list of Individuals used as parents
@@ -220,8 +193,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 	}
 	
 	/**
-	 * Select the individuals to be parents using a tournament selection.
-	 * Randomly select tSize people and choose the fittest to be a parent.
+	 * Randomly selects parent candidates and picks the fittest of them.
 	 * Repeat nParents times.
 	 * @param tSize = the size of the tournament
 	 * @param nParents = number of parents to be returned.
@@ -265,6 +237,91 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 		
 		
 		return parents;
+	}
+	
+	/**
+	 * Uses rank position to determine the chance of selection
+	 * @param tSize
+	 * @param nParents
+	 * @return
+	 */
+	private ArrayList<Individual> rankedBasedSelection(int tSize, int nParents) {
+		ArrayList<Individual> parents = new ArrayList<>();
+			// TODO: need an implementation
+		return parents;
+	}
+	
+	/**
+	 * Uses fittnes proportionate chance of selection 
+	 * @param tSize
+	 * @param nParents
+	 * @return
+	 */
+	private ArrayList<Individual> rouletteWheelSelection(int tSize, int nParents) {
+		ArrayList<Individual> parents = new ArrayList<>();
+		double totalFitness = 0.0;
+		double rouletteValue = 0.0;
+	
+		// get the sum of the total fitness ( 1/fitness )
+		for (Individual individual : population) {
+			totalFitness += 1/individual.fitness;
+		}
+				
+		while(parents.size() < 2) {
+			int index = 0;
+			// get a random value between 0 and the totalFitness
+			rouletteValue = Parameters.random.nextDouble() * totalFitness;
+			
+			// start subtracting the inverse fitness from the rouletteValue
+			while (rouletteValue >= 0) {
+				rouletteValue -= 1/population.get(index).fitness; 
+				index++;
+			}
+			
+			index--;
+			// make sure we have not selected this individual as a parent already
+			if (!parents.contains(population.get(index))) {
+				parents.add(population.get(index));
+			}
+		}
+		
+		return parents;
+	}
+	
+	//TODO: add comments
+	private ArrayList<Integer> getHiddenNeuronWeightsAndBias(int neuron){
+		ArrayList<Integer> indices = new ArrayList<>();
+		int index = 0;
+		
+		// Get all input indices
+		for (int i = 0; i < Parameters.numInputs; i++) {
+			index = neuron*Parameters.getNumHidden() + i;
+			indices.add(index);
+		}
+		
+		// Get the bias
+		index = Parameters.numInputs*Parameters.getNumHidden() + neuron;
+		indices.add(index);
+		
+		return indices;
+	}
+	
+	//TODO: add comments
+	private ArrayList<Integer> getOutputWeightsAndBias(int output){
+		ArrayList<Integer> indices = new ArrayList<>();
+		int index = 0;
+		
+		// Get all input indices
+		for (int i = 0; i < Parameters.getNumHidden(); i++) {
+			index = Parameters.getNumHidden() * Parameters.numInputs + Parameters.getNumHidden() + output*Parameters.getNumHidden() + i;
+			indices.add(index);
+		}
+		
+		// Get the bias
+		index = Parameters.getNumHidden() * Parameters.numInputs + Parameters.getNumHidden() + Parameters.getNumHidden()*Parameters.numOutputs + output;
+		indices.add(index);
+		
+		return indices;
 	}
 	
 	/**
@@ -355,10 +412,5 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 		evaluateIndividuals(population);
 		return population;
 	}
-	
-	
-	
-	
-	
 	
 }
