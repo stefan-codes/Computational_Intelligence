@@ -1,6 +1,7 @@
 package coursework;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Random;
 import model.LunarParameters;
 import model.NeuralNetwork;
@@ -24,17 +25,28 @@ public class Parameters {
 	public static int maxEvaluations = 20000; // Must be 20000
 	
 	// Selection
-	public static int tournamentSize = 2;
+	public static int tournamentSize = 3;
 	public static int numberOfParents = 2;
 	
 	// CrossOver - Don't change for now!
 	public static int numberOfChildrenBorn = 1;
 	public static int numberOfChildrenSurvive = 1;
 	
-	// Parameters for mutation 
+	// Parameters for BFF mutation
+	public static double bandWidthRange = 0.05;
+	public static double mutateRateConst = 0.1;
+	public static int lGenerations = 50;
+	public static double mutationProbability = 0.1;
+	public static double mutationStep = 0.1;
+	public static ArrayList<Double> bffs = new ArrayList<Double>();
+	public static double linkingCoefficient = 1.2;
+	
+	//
+	public static int fitnesslastUpdateIndex = 0;
+	
 	// Rate = probability of changing a gene
 	// Change = the maximum +/- adjustment to the gene value
-	public static double mutateRate = 0.01; // mutation rate for mutation operator Default 0.01
+	public static double mutateRate = 0.05; // mutation rate for mutation operator Default 0.01
 	public static double mutateChange = 0.05; // delta change for mutation operator Default 0.05
 	
 	//Random number generator used throughout the application
@@ -77,7 +89,6 @@ public class Parameters {
 			try {
 				val = field.get(null);
 			} catch (IllegalArgumentException | IllegalAccessException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			str += name + " \t" + val + "\r\n";

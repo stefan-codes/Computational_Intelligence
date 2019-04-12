@@ -1,6 +1,12 @@
 package coursework;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+
+import org.apache.commons.math3.*;
+import org.apache.commons.math3.distribution.NormalDistribution;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 
 import model.Fitness;
 import model.Individual;
@@ -38,7 +44,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 			ArrayList<Individual> children = uniformCrossOver(parents, Parameters.numberOfChildrenBorn, Parameters.numberOfChildrenSurvive);
 			
 			// Mutation
-			constantMutate(children);
+			bestFitnessMutation(children);
 			
 			// Evaluate the children - set their fitness
 			evaluateIndividuals(children);
@@ -49,8 +55,15 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 			// check to see if the best has improved
 			best = setBest();
 			
+			printMeanFitness();
 			// Implemented in NN class. 
 			outputStats();
+			
+			if (best.fitness < 0.01) {
+				//terminate earlier
+				evaluations = 20000;
+				System.out.println("Early stopping!");
+			}
 			
 		}
 		
@@ -70,6 +83,13 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 			if (child.fitness < getWorst(population).fitness) {
 				population.set(population.indexOf(getWorst(population)), child);
 			} 
+			
+			// If its better than the best, reset our counter
+			if (child.fitness < best.fitness) {
+				Parameters.fitnesslastUpdateIndex = 0;
+			} else {
+				Parameters.fitnesslastUpdateIndex++;
+			}
 		}
 	}
 	
@@ -77,6 +97,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 	 * Mutation which for each gene applies a random positive or negative mutateChange with mutateRate chance.
 	 * @param individuals the children passed to be mutated.
 	 */
+	@SuppressWarnings("unused")
 	private void constantMutate(ArrayList<Individual> individuals) {
 		// For each individual
 		for (Individual individual : individuals) {
@@ -84,17 +105,140 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 			for (int i = 0; i < individual.chromosome.length; i++) {
 				if (Parameters.random.nextDouble() < Parameters.mutateRate) {
 					if (Parameters.random.nextBoolean()) {
-						individual.chromosome[i] += (Parameters.mutateChange);
+						//individual.chromosome[i] += (Parameters.mutateChange);
+						individual.chromosome[i] += individual.fitness;
 					} else {
-						individual.chromosome[i] -= (Parameters.mutateChange);
+						individual.chromosome[i] -= individual.fitness;
 					}
 				}
 			}
 		}
 	}
 	
-	private void ffdMutate() {
-		// TODO: need to implement
+	/**
+	 * 
+	 */
+	private void bestFitnessMutation(ArrayList<Individual> individuals) {
+		
+		Parameters.mutateRate = Parameters.fitnesslastUpdateIndex * 0.01;
+		
+		// Make sure mutationRate doesn't get lower than 0.05 and higher than 1
+		if (Parameters.mutateRate < 0.05) {
+			Parameters.mutateRate = 0.05;
+		} else if (Parameters.mutateRate > 1) {
+			Parameters.mutateRate = 1;
+		}
+		
+		// For each individual
+				for (Individual individual : individuals) {
+					// Standard Deviation
+					double stDev = best.fitness * 5;
+					// Normal Distribution
+					NormalDistribution nDist = new NormalDistribution(0, stDev);
+					
+					// For each gene in the chromosome
+					for (int i = 0; i < individual.chromosome.length; i++) {
+						// Sample the distribution
+						double nDistSample = nDist.sample();
+						
+						if (Parameters.random.nextDouble() < Parameters.mutateRate) {
+							individual.chromosome[i] += nDistSample;
+							
+//							if (Parameters.random.nextBoolean()) {
+//								individual.chromosome[i] += 0.5D;
+//							} else {
+//								individual.chromosome[i] -= 0.5D;
+//							}
+						}
+					}
+				}
+	}
+	
+	/**
+	 * TODO: Write the comments
+	 * @param individuals
+	 */
+	private void fitnessFrequencyDistributionMutate(ArrayList<Individual> individuals) {
+		// The frequency value of a best fitness value BFF
+		double bff = calculateBff();
+		Parameters.bffs.add(bff);
+		
+		// Standard Deviation
+		StandardDeviation sDev = new StandardDeviation();
+		
+		double[] popFitness = new double[population.size()];
+		for (int i = 0; i < population.size(); i++) {
+			popFitness[i] = population.get(i).fitness;
+		}
+		
+		double standardDeviation = sDev.evaluate(popFitness);
+		if (standardDeviation < 0.0001) {
+			standardDeviation = 0.0001;
+		}
+		
+		// Normal Distribution
+		NormalDistribution nDist = new NormalDistribution(0, standardDeviation);
+		double nDistSample = nDist.sample();
+		System.out.println("nDistSample is: "+ nDistSample);
+		
+		// Mutation Rate (Probability) every 50 generations
+		if (Parameters.bffs.size() > Parameters.lGenerations) {
+			
+			// Get the mean BFF
+			double meanBff = 0.0;
+			for (double d : Parameters.bffs) {
+				meanBff += d;
+			}
+			meanBff = meanBff/Parameters.bffs.size();
+			
+			double mu = 3*standardDeviation*(meanBff/Parameters.linkingCoefficient);
+			Parameters.mutationProbability = Parameters.mutateRateConst + mu;
+			
+			Parameters.bffs.clear();
+		}
+				
+		// For each individual
+		for (Individual individual : individuals) {
+			// For each gene in the chromosome
+			for (@SuppressWarnings("unused") double gene : individual.chromosome) {
+				if (Parameters.random.nextDouble() < Parameters.mutationProbability) {
+					if (Parameters.random.nextBoolean()) {
+						gene += (nDistSample);
+					} else {
+						gene -= (nDistSample);
+					}
+				}	
+			}
+		}
+		
+		
+		
+		System.out.println("Mutation Rate is: " + Parameters.mutationProbability);
+	}
+	
+	/**
+	 * Calculate the frequency value of the best fitness value Range between 1-0
+	 * @return
+	 */
+	private double calculateBff() {
+		double bff = 0.0; // The frequency value of a best fitness value 0-1
+		double bestFitness = getBest(population).fitness;
+		double bandwithInterval = bestFitness * Parameters.bandWidthRange;
+		
+		// Number of individuals in a specific fitness bracket
+		double ni = 0.0;
+		
+		// For all the individuals in the population
+		for(Individual individual : population) {
+			// if the ti is within tb + e
+			if (individual.fitness < bestFitness + bandwithInterval) {
+				ni++;
+			}
+		}
+		
+		bff = ni/Parameters.popSize;
+		
+		return bff;
 	}
 	
 	/**
@@ -104,6 +248,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 	 * @param chSurvive children survived and replaced in population
 	 * @return a list of children to use for replacement. 
 	 */
+	@SuppressWarnings("unused")
 	private ArrayList<Individual> customCrossOver(ArrayList<Individual> parents, int chBorn, int chSurvive){
 		ArrayList<Individual> children = new ArrayList<>();
 		ArrayList<Integer> indices = new ArrayList<>();
@@ -245,6 +390,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 	 * @param nParents
 	 * @return
 	 */
+	@SuppressWarnings("unused")
 	private ArrayList<Individual> rankedBasedSelection(int tSize, int nParents) {
 		ArrayList<Individual> parents = new ArrayList<>();
 			// TODO: need an implementation
@@ -252,11 +398,12 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 	}
 	
 	/**
-	 * Uses fittnes proportionate chance of selection 
+	 * Uses fitness proportioned chance of selection 
 	 * @param tSize
 	 * @param nParents
 	 * @return
 	 */
+	@SuppressWarnings("unused")
 	private ArrayList<Individual> rouletteWheelSelection(int tSize, int nParents) {
 		ArrayList<Individual> parents = new ArrayList<>();
 		double totalFitness = 0.0;
@@ -288,7 +435,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 		return parents;
 	}
 	
-	//TODO: add comments
+	// Helping method for my custom cross over (node related)
 	private ArrayList<Integer> getHiddenNeuronWeightsAndBias(int neuron){
 		ArrayList<Integer> indices = new ArrayList<>();
 		int index = 0;
@@ -306,7 +453,7 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 		return indices;
 	}
 	
-	//TODO: add comments
+	// Helping method for my custom cross over (node related)
 	private ArrayList<Integer> getOutputWeightsAndBias(int output){
 		ArrayList<Integer> indices = new ArrayList<>();
 		int index = 0;
@@ -372,6 +519,17 @@ public class MyEvolutionaryAlgorithm extends NeuralNetwork {
 			}
 		}
 		return best;
+	}
+	
+	private void printMeanFitness() {
+		double mean = 0;
+		for (Individual i : population) {
+			mean += i.fitness;
+		}
+		
+		mean = mean / population.size();
+		
+		System.out.println("Mean fitness is: " + mean);
 	}
 	
 	/**
